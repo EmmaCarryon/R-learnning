@@ -1,0 +1,120 @@
+---
+title: "作业七:机器学习实战-泰坦尼克乘客生还预测"
+author: "EMMA"
+date: "Saturday, August 19, 2017"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+##设置工作区间
+```{r}
+getwd()
+setwd("D:/数据分析/R机器学习/R_ML泰坦尼克乘客生还预测")
+getwd()
+```
+##导入数据
+点击Import Dataset按钮选择数据源，数据自动导入。数据路径有中文时会报错可写代码导入
+欠报错截图，自动生成导数代码截图
+```{r}
+train<- read.csv("D:/数据分析/R机器学习/R_ML泰坦尼克乘客生还预测/数据/train.csv")
+test<- read.csv("D:/数据分析/R机器学习/R_ML泰坦尼克乘客生还预测/数据/test.csv")
+```
+##了解数据摘要
+```{r}
+str(train)
+str(test)
+table(train$Survived)#table()统计汇总函数
+prop.table(table(train$Survived))#占比
+```
+##处理数据
+###假设所有的数据都为0，从训练集数据来看有62%的正确率
+####预测一
+```{r}
+head(test$Survived)
+test$Survived<-rep(0,418)#为Survied变量设值为0（死），rep()重复设置值函数。
+str(test)
+submit <- data.frame(PassengerId = test$PassengerId, Survived = test$Survived)
+write.csv(submit, file = "theyallperish.csv", row.names = FALSE)
+```
+####预测二:性别
+```{r}
+summary(train$Sex)
+prop.table(table(train$Sex))#占比
+prop.table(table(train$Sex,train$Survived))#
+##女性的得救率是26.25/35.24=75%
+##假设女性都被得救
+test$Survived<-0
+test$Survived[test$Sex=='female']<-1
+submit <- data.frame(PassengerId = test$PassengerId, Survived = test$Survived)
+write.csv(submit, file = "theyallperish.csv", row.names = FALSE)
+```
+####预测三:年龄
+```{r}
+summary(train$Age)
+train$Age<-as.numeric(train$Age)
+train$Age[train$Age==0]<-0.01
+breaks<-c(0,0.01,12,18,24,30,35,40,50,60,70,80)
+lables<-c('空值','0-12','13-18','19-24','25-30','31-35','36-40','41-50','51-60','61-70','71-80')
+train$年龄分组<-cut(train$Age,breaks=breaks,lables=lables)
+aggregate(Survived~年龄分组+Sex,data=train,FUN=sum)
+aggregate(PassengerId~年龄分组+Sex,data=train,FUN=length)
+str(train)
+aggregate(Survived~年龄分组+Sex,data=train,FUN=function(x)
+  {sum(x)/length(x)})
+
+```
+####预测三:船舱位置，费用
+```{r}
+##赋值
+train$Fare2<-'30+'
+train$Fare2[train$Fare<30&train$Fare>=20]<-'20-30'
+train$Fare2[train$Fare<20&train$Fare>=10]<-'10-20'
+train$Fare2[train$Fare<10]<-'10'
+aggregate(Survived ~ Fare2 + Pclass +年龄分组+ Sex, data=train, FUN=function(x) {sum(x)/length(x)})
+```
+###预测三导出
+```{r}
+test$Survived <- 0
+test$Survived[test$Sex == 'female'] <- 1
+test$Survived[test$Sex == 'female' & test$Pclass == 3 & test$Fare >= 30&test$Age==0.01] <- 0
+test$Survived[test$Sex == 'female' & test$Pclass == 1 & test$Fare >= 30 & test$Age<=12& test$Age>0.01] <- 0
+test$Survived[test$Sex == 'female' & test$Pclass == 3 & test$Fare >= 20 &test$Age<=12& test$Age>0.01] <- 0
+test$Survived[test$Sex == 'female' & test$Pclass == 3 & test$Fare >= 30 &test$Age<=24& test$Age>12] <- 0
+test$Survived[test$Sex == 'female' & test$Pclass == 3 & test$Fare<=30 & test$Fare >20 &test$Age<=30& test$Age>24] <- 0
+test$Survived[test$Sex == 'female' & test$Pclass == 3 & test$Fare<=20 & test$Fare >10 &test$Age<=18& test$Age>12] <- 0
+test$Survived[test$Sex == 'female' & test$Pclass == 3 & test$Fare<=30 & test$Fare >20 &test$Age<=40& test$Age>35] <- 0
+test$Survived[test$Sex == 'female' & test$Pclass == 3 & test$Fare<=10 &test$Age<=40& test$Age>35] <- 0
+test$Survived[test$Sex == 'female' & test$Pclass == 3 & test$Fare<=20 &test$Age<=35& test$Age>30] <- 0
+test$Survived[test$Sex == 'female' & test$Pclass == 3 &  test$Age<=50& test$Age>40] <- 0
+test$Survived[test$Sex == 'male' & test$Pclass == 2 & test$Fare<=30 & test$Fare >10 &test$Age<=12& test$Age>0.01] <- 1
+test$Survived[test$Sex == 'male' & test$Pclass == 3 & test$Fare<10 &test$Age<=12& test$Age>0.01] <- 1
+test$Survived[test$Sex == 'male' & test$Pclass == 1 & test$Fare>30 &test$Age<=12& test$Age>0.01] <- 1
+test$Survived[test$Sex == 'male' & test$Pclass == 3 & test$Fare>30 &test$Age<=35& test$Age>30] <- 1
+test$Survived[test$Sex == 'male' & test$Pclass == 1 & test$Fare<=30 &test$Fare>20 &test$Age<=35& test$Age>30] <- 1
+test$Survived[test$Sex == 'female' & test$Pclass == 3 & test$Fare >= 20] <- 0
+submit <- data.frame(PassengerId = test$PassengerId, Survived = test$Survived)
+write.csv(submit, file = "theyallperish4.csv", row.names = FALSE)
+```
+##建模
+```{r}
+library(rpart)
+fit <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked,data=train,method="class")
+plot(fit)
+text(fit)
+install.packages('rattle')
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+fancyRpartPlot(fit)#美化图片，提高可视化
+##
+Prediction <- predict(fit, test, type = "class")
+submit <- data.frame(PassengerId = test$PassengerId, Survived = Prediction)
+write.csv(submit, file = "myfirstdtree.csv", row.names = FALSE)
+
+fit <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked,
+               data=train,
+               method="class", 
+               control=rpart.control(minsplit=2, cp=0))
+fancyRpartPlot(fit)
+```
+
